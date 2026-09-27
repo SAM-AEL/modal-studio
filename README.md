@@ -24,6 +24,7 @@ An open-source creative studio for **serverless text-to-image generation** and *
 - [Using the app](#using-the-app)
 - [Training LoRAs](#training-loras-full-workflow)
 - [API reference](#api-reference)
+- [Adding your own model](#adding-your-own-model)
 - [Project structure](#project-structure)
 - [GPU costs](#gpu-costs)
 - [Security notes](#security-notes)
@@ -217,6 +218,75 @@ All routes are Next.js Route Handlers; training calls stream **NDJSON** (`applic
 
 ---
 
+## Adding your own model
+
+Three steps. Takes about 5 minutes once you've done it once.
+
+### 1. Create the Modal backend file
+
+Copy the simplest existing model and adapt it:
+
+```bash
+cp modal_backend/models/sdxl.py modal_backend/models/my_model.py
+```
+
+Every model file follows the same shape — a Modal app with a class that
+loads a diffusers pipeline once, then serves a `generate` method returning
+PNG bytes. `sdxl.py` is the shortest full example, worth reading first.
+
+Things worth knowing:
+
+- The argument order of `generate` matters. `/api/generate` calls it
+  positionally as `(prompt, seed, guidanceScale, steps, width, height,
+  batchSize)`. Keep that signature unless you also update the route.
+- If your model needs extra trailing args (like the Ideogram `transparent`
+  flag or the Flux-LoRA `loras` list), append them after `batch_size` and
+  handle them in `app/api/generate/route.ts` (see step 3).
+- For gated repos, request access on Hugging Face first, then add
+  `secrets=[modal.Secret.from_name("huggingface-secret")]` to the `@app.cls`
+  decorator and pass `token=os.environ["HF_TOKEN"]` to `from_pretrained`.
+  (See `flux_schnell.py` for a working example.)
+- GPU cheat sheet: A10G (24GB) is fine for SD1.5/SDXL-size models, A100 for
+  Flux-size, H100 for the big ones like Ideogram 4. Bigger than needed just
+  costs more per second.
+
+### 2. Deploy it to Modal
+
+```bash
+# test it first (runs once, prints any errors):
+modal run modal_backend/models/my_model.py
+
+# deploy it as a serverless endpoint:
+modal deploy modal_backend/models/my_model.py
+
+# confirm it's live:
+modal app list
+```
+
+### 3. Wire it into the frontend
+
+Register the app in `app/api/generate/route.ts`:
+
+```ts
+const MODEL_MAPPING = {
+  // ...
+  "my-model": { appName: "my-model-api", className: "MyModel" },
+};
+```
+
+Then add it to the picker in `app/studio/page.tsx`:
+
+```tsx
+{ id: "my-model", name: "My Model", cfg: 7.5, steps: 30, gpu: "A10G", requiredVram: 12 },
+```
+
+`cfg`/`steps` are just the defaults pre-filled on selection. `gpu` and
+`requiredVram` drive the cost estimate and the "not enough VRAM" warning,
+so set them honestly. Restart `npm run dev` and it shows up in the Studio
+dropdown.
+
+---
+
 ## Project structure
 
 ```
@@ -282,7 +352,7 @@ fallback table against modal.com periodically — GPU prices change.
 1. Fork → feature branch → PR.
 2. `npm run lint` and `npm run build` must pass.
 3. Do not commit `.env.local`, weights (`*.safetensors`), `datasets/`, `lora/`, `__pycache__`, or lockfiles other than `package-lock.json`.
-4. For new models: add `modal_backend/models/<name>.py` exposing `generate(...) → list[bytes]`, deploy it, then register the `(appName, className)` pair in `MODEL_MAPPING` (`app/api/generate/route.ts`) and the UI list (`app/studio/page.tsx`).
+4. For new models, follow [Adding your own model](#adding-your-own-model).
 
 ---
 
