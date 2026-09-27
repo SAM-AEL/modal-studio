@@ -268,11 +268,12 @@ fallback table against modal.com periodically — GPU prices change.
 
 ## Security notes
 
-- **Never commit `.env.local`.** It is gitignored; `.env.example` documents the required keys with empty values.
-- **Rotate any token that was ever shared.** If in doubt, create fresh tokens at [modal.com/settings/tokens](https://modal.com/settings/tokens) and [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), then run `modal secret create huggingface-secret HF_TOKEN=...` and update `.env.local`.
-- The Modal Secret is literally named **`huggingface-secret`** and must expose **`HF_TOKEN`** — every backend file references `modal.Secret.from_name("huggingface-secret")` / `os.environ["HF_TOKEN"]`.
-- The history was audited before open-sourcing: no tokens were ever committed (only the secret *name* appears in code, which is safe to share). `__pycache__`, weights (`*.safetensors`), `datasets/`, `lora/`, and `.env*` files are all gitignored.
-- API errors surface Modal messages to the browser console — do not paste production logs with account IDs into public issues.
+- `.env.local` holds your real tokens and is gitignored — don't commit it.
+- Keep your Modal and Hugging Face tokens private. If one leaks, revoke it
+  and make a new one, then update `.env.local` and the `huggingface-secret`
+  Modal Secret (see Quickstart step 4).
+- The backend expects a Modal Secret called `huggingface-secret` containing
+  `HF_TOKEN`.
 
 ---
 
