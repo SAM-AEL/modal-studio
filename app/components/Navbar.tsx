@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, LayoutDashboard, Library, Zap, Settings, Image } from "lucide-react";
+import { Sparkles, LayoutDashboard, Library, Zap, Settings, Image, Clapperboard } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -32,6 +32,14 @@ export default function Navbar() {
         title="Image to Image"
       >
         <Image className="w-6 h-6" />
+      </Link>
+
+      <Link 
+        href="/animate" 
+        className={`p-3 rounded-xl transition-all ${isCurrent("/animate") ? "bg-black text-white shadow-lg" : "text-black/40 hover:bg-black/5"}`} 
+        title="Wan Animate Video"
+      >
+        <Clapperboard className="w-6 h-6" />
       </Link>
 
       <Link 
